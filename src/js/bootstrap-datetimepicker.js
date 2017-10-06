@@ -187,6 +187,10 @@
                 return (isEnabled('h') || isEnabled('m') || isEnabled('s'));
             },
 
+            hasMonth = function () {
+                return (isEnabled('y') || isEnabled('M'));
+            },
+
             hasDate = function () {
                 return (isEnabled('y') || isEnabled('M') || isEnabled('d'));
             },
@@ -515,6 +519,10 @@
                 widget.find('.datepicker-days thead').append(row);
             },
 
+            isInDisabledMonths = function (testDate) {
+                return options.disabledMonths[testDate.format('YYYY-MM')] === true;
+            },
+
             isInDisabledDates = function (testDate) {
                 return options.disabledDates[testDate.format('YYYY-MM-DD')] === true;
             },
@@ -533,6 +541,9 @@
 
             isValid = function (targetMoment, granularity) {
                 if (!targetMoment.isValid()) {
+                    return false;
+                }
+                if (options.disabledMonths && granularity === 'M' && isInDisabledMonths(targetMoment)) {
                     return false;
                 }
                 if (options.disabledDates && granularity === 'd' && isInDisabledDates(targetMoment)) {
@@ -1370,6 +1381,20 @@
                 }
             },
 
+            indexGivenMonths = function (givenMonthsArray) {
+                // Store given enabledMonths and disabledMonths as keys.
+                // This way we can check their existence in O(1) time instead of looping through whole array.
+                // (for example: options.enabledMonths['2014-02'] === true)
+                var givenMonthsIndexed = {};
+                $.each(givenMonthsArray, function () {
+                    var dDate = parseInputDate(this);
+                    if (dDate.isValid()) {
+                        givenMonthsIndexed[dDate.format('YYYY-MM')] = true;
+                    }
+                });
+                return (Object.keys(givenMonthsIndexed).length) ? givenMonthsIndexed : false;
+            },
+
             indexGivenDates = function (givenDatesArray) {
                 // Store given enabledDates and disabledDates as keys.
                 // This way we can check their existence in O(1) time instead of looping through whole array.
@@ -1614,6 +1639,34 @@
             }
             options.disabledDates = indexGivenDates(dates);
             options.enabledDates = false;
+            update();
+            return picker;
+        };
+
+        picker.disabledMonths = function (dates) {
+            ///<signature helpKeyword="$.fn.datetimepicker.disabledMonths">
+            ///<summary>Returns an array with the currently set disabled dates on the component.</summary>
+            ///<returns type="array">options.disabledMonths</returns>
+            ///</signature>
+            ///<signature>
+            ///<summary>Setting this takes precedence over options.minDate, options.maxDate configuration. Also calling this function removes the configuration of
+            ///options.enabledMonths if such exist.</summary>
+            ///<param name="dates" locid="$.fn.datetimepicker.disabledMonths_p:dates">Takes an [ string or Date or moment ] of values and allows the user to select only from those days.</param>
+            ///</signature>
+            if (arguments.length === 0) {
+                return (options.disabledMonths ? $.extend({}, options.disabledMonths) : options.disabledMonths);
+            }
+
+            if (!dates) {
+                options.disabledMonths = false;
+                update();
+                return picker;
+            }
+            if (!(dates instanceof Array)) {
+                throw new TypeError('disabledMonths() expects an array parameter');
+            }
+            options.disabledMonths = indexGivenMonths(dates);
+            options.enabledMonths = false;
             update();
             return picker;
         };
@@ -2457,6 +2510,7 @@
         collapse: true,
         locale: moment.locale(),
         defaultDate: false,
+        disabledMonths: false,
         disabledDates: false,
         enabledDates: false,
         icons: {
